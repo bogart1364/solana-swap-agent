@@ -19,7 +19,7 @@ const TOKEN_CHARS = "a-zA-Z0-9";
 
 export interface ParsedSwapCommand {
   kind: "swap";
-  amount: number;
+  amount: number | "all";
   fromToken: string; // symbol or raw mint address, original case preserved
   toToken: string;
   slippageBps?: number;
@@ -44,7 +44,15 @@ export interface ParseResult {
 
 const SWAP_WORDS = ["swap", "trade", "exchange", "buy", "sell", "سواپ", "تبدیل", "معامله", "بخر", "بفروش"];
 const SEND_WORDS = ["send", "transfer", "ارسال", "انتقال", "بفرست"];
-const TO_WORDS = ["to", "for", "into", "به", "برای"];
+const TO_WORDS = ["to", "for", "into", "of", "به", "برای", "از"];
+const AMOUNT_RE = "(all|همه|[0-9]+(?:\\.[0-9]+)?)";
+
+function parseAmountToken(token: string): number | "all" | null {
+  const t = token.trim().toLowerCase();
+  if (t === "all" || t === "همه") return "all";
+  const n = parseFloat(token);
+  return !n || n <= 0 ? null : n;
+}
 
 function stripLeadingWord(text: string, words: string[]): { rest: string; matched: string | null } {
   for (const w of words) {
@@ -112,15 +120,15 @@ export function parseCommand(input: string): ParseResult {
   // "buy <amount> <TOKEN>" defaults the source side to SOL; "sell <amount> <TOKEN>"
   // defaults the destination side to SOL, unless the user names both tokens explicitly.
   const twoTokenRegex = new RegExp(
-    `([0-9]+(?:\\.[0-9]+)?)\\s+([${TOKEN_CHARS}]+)\\s+(?:${TO_WORDS.join("|")})\\s+([${TOKEN_CHARS}]+)`,
+    `${AMOUNT_RE}\\s+([${TOKEN_CHARS}]+)\\s+(?:${TO_WORDS.join("|")})\\s+([${TOKEN_CHARS}]+)`,
     "i"
   );
-  const oneTokenRegex = new RegExp(`([0-9]+(?:\\.[0-9]+)?)\\s+([${TOKEN_CHARS}]+)`, "i");
+  const oneTokenRegex = new RegExp(`${AMOUNT_RE}\\s+([${TOKEN_CHARS}]+)`, "i");
 
   const twoMatch = rest.match(twoTokenRegex);
   if (twoMatch) {
-    const amount = parseFloat(twoMatch[1]);
-    if (!amount || amount <= 0) return { ok: false, error: "Amount must be a positive number." };
+    const amount = parseAmountToken(twoMatch[1]);
+    if (amount === null) return { ok: false, error: "Amount must be a positive number, or \"all\"." };
     const fromToken = twoMatch[2];
     const toToken = twoMatch[3];
     if (fromToken.toLowerCase() === toToken.toLowerCase())
@@ -131,10 +139,12 @@ export function parseCommand(input: string): ParseResult {
   if (verb === "buy" || verb === "بخر" || verb === "sell" || verb === "بفروش") {
     const oneMatch = rest.match(oneTokenRegex);
     if (oneMatch) {
-      const amount = parseFloat(oneMatch[1]);
-      if (!amount || amount <= 0) return { ok: false, error: "Amount must be a positive number." };
+      const amount = parseAmountToken(oneMatch[1]);
+      if (amount === null) return { ok: false, error: "Amount must be a positive number, or \"all\"." };
       const token = oneMatch[2];
       const isBuy = verb === "buy" || verb === "بخر";
+      if (isBuy && amount === "all")
+        return { ok: false, error: '"all" only makes sense for selling, e.g. "sell all BONK".' };
       return {
         ok: true,
         command: isBuy

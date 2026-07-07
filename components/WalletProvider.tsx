@@ -10,7 +10,6 @@ if (typeof window !== "undefined" && !(window as any).Buffer) {
 }
 import { ConnectionProvider, WalletProvider } from "@solana/wallet-adapter-react";
 import { WalletModalProvider } from "@solana/wallet-adapter-react-ui";
-import { PhantomWalletAdapter, SolflareWalletAdapter } from "@solana/wallet-adapter-wallets";
 import { clusterApiUrl } from "@solana/web3.js";
 
 import "@solana/wallet-adapter-react-ui/styles.css";
@@ -20,10 +19,13 @@ import "@solana/wallet-adapter-react-ui/styles.css";
 const RPC_URL = process.env.NEXT_PUBLIC_SOLANA_RPC_URL || clusterApiUrl("mainnet-beta");
 
 export function SolanaWalletProvider({ children }: { children: React.ReactNode }) {
-  // Wallet Standard wallets (Phantom, Backpack, and most modern wallets) auto-register
-  // themselves as browser extensions load, so they show up even without an adapter here.
-  // These two are kept explicit for broader/older browser support.
-  const wallets = useMemo(() => [new PhantomWalletAdapter(), new SolflareWalletAdapter()], []);
+  // Phantom, Solflare, Backpack, and virtually every modern Solana wallet now
+  // auto-register via the Wallet Standard as soon as the extension loads.
+  // Explicitly instantiating the legacy adapters alongside that causes
+  // duplicate/conflicting entries in the picker and can make "Connect"
+  // silently do nothing — so we deliberately pass an empty list here and
+  // let every installed wallet be auto-detected instead.
+  const wallets = useMemo(() => [], []);
 
   return (
     <ConnectionProvider endpoint={RPC_URL}>

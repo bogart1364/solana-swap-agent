@@ -17,7 +17,7 @@ import {
 
 import { parseCommand } from "./parseCommand";
 import { getQuote, getSwapTransaction, formatAmount, toRawAmount, SOL_MINT } from "./jupiter";
-import { resolveToken } from "./mint";
+import { resolveToken, resolveWalletBalance } from "./mint";
 import { resolveRecipient } from "./contacts";
 
 export type LogKind = "command" | "info" | "quote" | "success" | "error" | "alert";
@@ -76,13 +76,16 @@ export function useTradeAgent() {
   }, []);
 
   const startSwap = useCallback(
-    async (fromToken: string, toToken: string, amount: number, slippageBps?: number) => {
+    async (fromToken: string, toToken: string, amountInput: number | "all", slippageBps?: number) => {
       if (!publicKey) {
         pushLog("error", "No wallet connected yet.");
         return;
       }
       setBusy(true);
-      pushLog("info", `Fetching a route: ${amount} ${fromToken} \u2192 ${toToken}\u2026`);
+      pushLog(
+        "info",
+        `Fetching a route: ${amountInput === "all" ? "all" : amountInput} ${fromToken} \u2192 ${toToken}\u2026`
+      );
       try {
         const from = await resolveToken(connection, fromToken);
         const to = await resolveToken(connection, toToken);
@@ -94,6 +97,18 @@ export function useTradeAgent() {
           pushLog("error", `Unknown token "${toToken}". Use a known symbol or paste the mint address.`);
           return;
         }
+
+        let amount: number;
+        if (amountInput === "all") {
+          amount = await resolveWalletBalance(connection, publicKey, from);
+          if (amount <= 0) {
+            pushLog("error", `No spendable ${from.symbol} balance found in this wallet.`);
+            return;
+          }
+        } else {
+          amount = amountInput;
+        }
+
         const rawAmount = toRawAmount(amount, from.decimals);
         const quote = await getQuote({ fromMint: from.mint, toMint: to.mint, rawAmount, slippageBps });
         if (quote.error) {
