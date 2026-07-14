@@ -45,7 +45,7 @@ export interface ParseResult {
 const SWAP_WORDS = ["swap", "trade", "exchange", "buy", "sell", "سواپ", "تبدیل", "معامله", "بخر", "بفروش"];
 const SEND_WORDS = ["send", "transfer", "ارسال", "انتقال", "بفرست"];
 const TO_WORDS = ["to", "for", "into", "of", "به", "برای", "از"];
-const AMOUNT_RE = "(all|همه|[0-9]+(?:\\.[0-9]+)?)";
+const AMOUNT_RE = "(all|همه|[0-9]+(?:\\.[0-9]+)?(?:[eE][+-]?[0-9]+)?)";
 
 function parseAmountToken(token: string): number | "all" | null {
   const t = token.trim().toLowerCase();
@@ -88,7 +88,7 @@ export function parseCommand(input: string): ParseResult {
   const sendStrip = stripLeadingWord(normalized, SEND_WORDS);
   if (sendStrip.matched) {
     const sendRegex = new RegExp(
-      `([0-9]+(?:\\.[0-9]+)?)\\s+(?:([${TOKEN_CHARS}]+)\\s+)?(?:${TO_WORDS.join("|")})\\s+([\\S]+)`,
+      `([0-9]+(?:\\.[0-9]+)?(?:[eE][+-]?[0-9]+)?)\\s+(?:([${TOKEN_CHARS}]+)\\s+)?(?:${TO_WORDS.join("|")})\\s+([\\S]+)`,
       "i"
     );
     const m = sendStrip.rest.match(sendRegex);

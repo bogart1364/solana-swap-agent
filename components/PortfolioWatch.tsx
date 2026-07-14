@@ -111,7 +111,7 @@ export default function PortfolioWatch({
 
   const handleSell = (h: Holding) => {
     if (!h.pair) return;
-    runCommand(`sell ${h.uiAmountString} ${h.mint} for SOL`);
+    runCommand(`sell all ${h.mint} for SOL`);
   };
 
   if (!publicKey) {
