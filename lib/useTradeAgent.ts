@@ -54,6 +54,7 @@ type PendingAction =
     };
 
 const CONFIRM_WORDS = ["confirm", "yes", "تایید", "بله"];
+const CANCEL_WORDS = ["cancel", "no", "n", "لغو", "کنسل", "نه"];
 
 export function useTradeAgent() {
   const { connection } = useConnection();
@@ -291,18 +292,24 @@ export function useTradeAgent() {
       const text = commandText.trim();
       if (!text || busy) return;
 
+      pushLog("command", text);
+
       if (pendingAction) {
-        pushLog("command", text);
         if (CONFIRM_WORDS.includes(text.toLowerCase())) {
           await executeConfirmedAction();
-        } else {
-          pushLog("info", "Previous pending action cancelled.");
-          setPendingAction(null);
+          return;
         }
-        return;
+        if (CANCEL_WORDS.includes(text.toLowerCase())) {
+          pushLog("info", "Cancelled.");
+          setPendingAction(null);
+          return;
+        }
+        // Anything else is treated as a brand-new command that supersedes the
+        // pending one — cancel it and fall through to parse `text` below,
+        // instead of silently discarding the command the person just typed.
+        pushLog("info", "Previous pending action cancelled \u2014 running your new command instead.");
+        setPendingAction(null);
       }
-
-      pushLog("command", text);
 
       if (!connected || !publicKey) {
         pushLog("error", 'No wallet connected yet. Click "Select Wallet" above first.');
