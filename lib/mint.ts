@@ -1,11 +1,12 @@
 import { Connection, PublicKey } from "@solana/web3.js";
-import { getMint, getAssociatedTokenAddress } from "@solana/spl-token";
+import { getMint, getAssociatedTokenAddress, TOKEN_PROGRAM_ID, TOKEN_2022_PROGRAM_ID } from "@solana/spl-token";
 import { findToken } from "./tokens";
 
 export interface ResolvedToken {
   mint: string;
   decimals: number;
   symbol: string;
+  programId: PublicKey;
 }
 
 // Base58 alphabet, no 0/O/I/l. Solana addresses are 32-44 chars.
@@ -30,10 +31,15 @@ export function isRpcFailure(err: unknown): boolean {
  * back to an on-chain lookup for anything else. This lets the console accept
  * *any* SPL token by pasting its mint address, not just the curated list.
  *
+ * Tries the classic Token program first, then Token-2022 — a lot of newer
+ * tokens (many pump.fun launches and others using transfer fees / hooks)
+ * are minted under Token-2022, and a mint's account is owned by exactly one
+ * of the two, so guessing wrong throws rather than just returning less info.
+ *
  * Throws RpcError (rather than returning null) when the failure looks like
  * the RPC endpoint itself is blocking/rate-limiting requests, so the caller
  * can show "your RPC endpoint is blocked" instead of the misleading
- * "unknown token" — this is the #1 cause of that error in practice, since
+ * "unknown token" — this is a common cause of that error in practice, since
  * the public mainnet-beta endpoint frequently 403s browser traffic.
  */
 export async function resolveToken(
@@ -41,28 +47,39 @@ export async function resolveToken(
   symbolOrMint: string
 ): Promise<ResolvedToken | null> {
   const curated = findToken(symbolOrMint);
-  if (curated) return { mint: curated.mint, decimals: curated.decimals, symbol: curated.symbol };
+  if (curated)
+    return {
+      mint: curated.mint,
+      decimals: curated.decimals,
+      symbol: curated.symbol,
+      programId: TOKEN_PROGRAM_ID,
+    };
 
   const candidate = symbolOrMint.trim();
   if (!BASE58_RE.test(candidate)) return null;
 
-  try {
-    const mintInfo = await getMint(connection, new PublicKey(candidate));
-    return {
-      mint: candidate,
-      decimals: mintInfo.decimals,
-      symbol: `${candidate.slice(0, 4)}\u2026${candidate.slice(-4)}`,
-    };
-  } catch (err) {
-    if (isRpcFailure(err)) {
-      throw new RpcError(
-        "Your Solana RPC endpoint rejected the request (403/429). The public mainnet-beta " +
-          "endpoint blocks most browser traffic — set NEXT_PUBLIC_SOLANA_RPC_URL to a real " +
-          "provider (Helius, QuickNode, Triton...) and redeploy."
-      );
+  const pubkey = new PublicKey(candidate);
+  const shortSymbol = `${candidate.slice(0, 4)}\u2026${candidate.slice(-4)}`;
+  let sawRpcFailure = false;
+
+  for (const programId of [TOKEN_PROGRAM_ID, TOKEN_2022_PROGRAM_ID]) {
+    try {
+      const mintInfo = await getMint(connection, pubkey, undefined, programId);
+      return { mint: candidate, decimals: mintInfo.decimals, symbol: shortSymbol, programId };
+    } catch (err) {
+      if (isRpcFailure(err)) sawRpcFailure = true;
+      // Otherwise this just means "not owned by this program" — try the next one.
     }
-    return null;
   }
+
+  if (sawRpcFailure) {
+    throw new RpcError(
+      "Your Solana RPC endpoint rejected the request (403/429). The public mainnet-beta " +
+        "endpoint blocks most browser traffic — set NEXT_PUBLIC_SOLANA_RPC_URL to a real " +
+        "provider (Helius, QuickNode, Triton...) and redeploy."
+    );
+  }
+  return null;
 }
 
 /**
@@ -94,7 +111,12 @@ export async function resolveWalletBalance(
     return spendable / 10 ** resolved.decimals;
   }
   try {
-    const ata = await getAssociatedTokenAddress(new PublicKey(resolved.mint), owner);
+    const ata = await getAssociatedTokenAddress(
+      new PublicKey(resolved.mint),
+      owner,
+      false,
+      resolved.programId
+    );
     const balance = await connection.getTokenAccountBalance(ata);
     return balance.value.uiAmount ?? 0;
   } catch (err) {

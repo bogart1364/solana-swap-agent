@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useConnection, useWallet } from "@solana/wallet-adapter-react";
-import { TOKEN_PROGRAM_ID } from "@solana/spl-token";
+import { TOKEN_PROGRAM_ID, TOKEN_2022_PROGRAM_ID } from "@solana/spl-token";
 import { getPairsForAddresses, assessDumpRisk, type DexPair } from "@/lib/dexscreener";
 import { isRpcFailure } from "@/lib/mint";
 import type { LogKind } from "@/lib/useTradeAgent";
@@ -43,9 +43,11 @@ export default function PortfolioWatch({
     }
     setLoading(true);
     try {
-      const accounts = await connection.getParsedTokenAccountsByOwner(publicKey, {
-        programId: TOKEN_PROGRAM_ID,
-      });
+      const [classic, token2022] = await Promise.all([
+        connection.getParsedTokenAccountsByOwner(publicKey, { programId: TOKEN_PROGRAM_ID }),
+        connection.getParsedTokenAccountsByOwner(publicKey, { programId: TOKEN_2022_PROGRAM_ID }),
+      ]);
+      const accounts = { value: [...classic.value, ...token2022.value] };
 
       const balances = accounts.value
         .map((a) => {
