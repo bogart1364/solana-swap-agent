@@ -83,18 +83,21 @@ Open http://localhost:3000. You'll need a Solana wallet browser extension
 (Phantom, Solflare, or any Wallet-Standard-compatible wallet) installed to
 connect and sign.
 
-### Using your own RPC endpoint (recommended before real trading)
+### Using your own RPC endpoint (do this before real trading — not optional)
 
-Copy `.env.example` to `.env.local` and set:
+The public `mainnet-beta` cluster endpoint used by default **frequently returns
+403/429 to browser traffic** — this is the #1 cause of "quotes fail",
+"holdings don't load", and "buy says unknown token" reports. The app now
+shows a banner and clear error messages when this happens, but the real fix
+is to configure your own endpoint:
 
-```
-NEXT_PUBLIC_SOLANA_RPC_URL=https://your-provider.example.com/your-key
-```
-
-The public `mainnet-beta` cluster endpoint used by default is heavily rate
-limited and can fail under real usage, and reading your token balances every
-30s (for the holdings watcher) adds up quickly. Get a free/paid endpoint from
-QuickNode, Helius, Triton, or Alchemy.
+1. Get a free RPC URL — e.g. sign up at https://helius.dev (free tier is
+   enough for personal use), or QuickNode / Triton / Alchemy.
+2. Local dev: copy `.env.example` to `.env.local` and set
+   `NEXT_PUBLIC_SOLANA_RPC_URL=https://mainnet.helius-rpc.com/?api-key=...`
+3. On Vercel: Project → Settings → Environment Variables → add
+   `NEXT_PUBLIC_SOLANA_RPC_URL` with the same value → **redeploy** (env var
+   changes don't apply to already-built deployments).
 
 ### Jupiter API tier
 

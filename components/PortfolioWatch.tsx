@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useConnection, useWallet } from "@solana/wallet-adapter-react";
 import { TOKEN_PROGRAM_ID } from "@solana/spl-token";
 import { getPairsForAddresses, assessDumpRisk, type DexPair } from "@/lib/dexscreener";
+import { isRpcFailure } from "@/lib/mint";
 import type { LogKind } from "@/lib/useTradeAgent";
 
 const POLL_MS = 30_000;
@@ -29,6 +30,8 @@ export default function PortfolioWatch({
   const { publicKey } = useWallet();
   const [holdings, setHoldings] = useState<Holding[]>([]);
   const [loading, setLoading] = useState(false);
+  const [rpcError, setRpcError] = useState<string | null>(null);
+  const lastRpcErrorLoggedAt = useRef(0);
 
   const prevPairs = useRef<Map<string, DexPair>>(new Map());
   const lastAlertAt = useRef<Map<string, number>>(new Map());
@@ -79,8 +82,20 @@ export default function PortfolioWatch({
 
       for (const p of pairs) prevPairs.current.set(p.baseToken.address, p);
       setHoldings(nextHoldings);
-    } catch {
-      // Silently skip a failed poll; RPC/DexScreener hiccups shouldn't spam the log.
+      setRpcError(null);
+    } catch (err) {
+      if (isRpcFailure(err)) {
+        setRpcError(
+          "Your Solana RPC endpoint is blocking/rate-limiting requests (403/429). Holdings can't " +
+            "load until NEXT_PUBLIC_SOLANA_RPC_URL is set to a real provider (Helius, QuickNode\u2026)."
+        );
+        // Log it to the console once every few minutes, not on every 30s poll.
+        if (Date.now() - lastRpcErrorLoggedAt.current > 5 * 60_000) {
+          pushLog("error", "Holdings fetch failed: RPC endpoint rejected the request (403/429).");
+          lastRpcErrorLoggedAt.current = Date.now();
+        }
+      }
+      // Non-RPC hiccups (a transient DexScreener blip, etc.) are skipped quietly.
     } finally {
       setLoading(false);
     }
@@ -118,6 +133,7 @@ export default function PortfolioWatch({
       </div>
 
       <div className="scanner-list">
+        {rpcError && <p className="error-text">{rpcError}</p>}
         {holdings.map((h) => (
           <div key={h.mint} className={`scanner-row ${h.atRisk ? "tier-extreme-risk" : ""}`}>
             <div className="scanner-row-top">
@@ -141,7 +157,7 @@ export default function PortfolioWatch({
             )}
           </div>
         ))}
-        {holdings.length === 0 && !loading && (
+        {holdings.length === 0 && !loading && !rpcError && (
           <p className="empty-text">No tracked SPL token balances found in this wallet.</p>
         )}
       </div>

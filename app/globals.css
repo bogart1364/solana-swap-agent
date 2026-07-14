@@ -367,6 +367,26 @@ a {
   margin: 6px 0;
 }
 
+.rpc-warning {
+  max-width: 720px;
+  width: 100%;
+  font-size: 12.5px;
+  line-height: 1.6;
+  color: #ffd479;
+  background: rgba(255, 180, 60, 0.08);
+  border: 1px solid rgba(255, 180, 60, 0.3);
+  border-radius: 8px;
+  padding: 10px 14px;
+  margin: 0 0 20px;
+}
+
+.rpc-warning code {
+  font-family: var(--mono);
+  background: rgba(0, 0, 0, 0.25);
+  padding: 1px 5px;
+  border-radius: 4px;
+}
+
 .empty-text {
   color: var(--muted);
   font-size: 12.5px;
