@@ -16,7 +16,28 @@ import "@solana/wallet-adapter-react-ui/styles.css";
 
 // Set NEXT_PUBLIC_SOLANA_RPC_URL to your own RPC endpoint (QuickNode, Helius, Triton, etc.)
 // for production use — the public cluster endpoint is rate limited.
-const RPC_URL = process.env.NEXT_PUBLIC_SOLANA_RPC_URL || clusterApiUrl("mainnet-beta");
+//
+// This is validated defensively because a malformed value here (missing
+// "https://", stray whitespace/quotes from pasting into a dashboard env var
+// field, etc.) would otherwise throw inside `new Connection(...)` — and
+// since that construction can run during Next.js's build-time prerender,
+// a bad env var can take down the whole deployment, not just show a runtime
+// error. Falling back keeps the build (and the app) working; the on-page
+// banner in app/page.tsx is what tells the user their custom RPC isn't
+// actually being used.
+function resolveRpcUrl(): string {
+  const raw = process.env.NEXT_PUBLIC_SOLANA_RPC_URL?.trim();
+  if (raw && /^https?:\/\//i.test(raw)) return raw;
+  if (raw) {
+    console.warn(
+      `NEXT_PUBLIC_SOLANA_RPC_URL is set but isn't a valid http(s) URL ("${raw}"). ` +
+        "Falling back to the public mainnet-beta endpoint, which is rate limited."
+    );
+  }
+  return clusterApiUrl("mainnet-beta");
+}
+
+const RPC_URL = resolveRpcUrl();
 
 export function SolanaWalletProvider({ children }: { children: React.ReactNode }) {
   // Phantom, Solflare, Backpack, and virtually every modern Solana wallet now

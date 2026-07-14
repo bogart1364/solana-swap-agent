@@ -92,7 +92,9 @@ shows a banner and clear error messages when this happens, but the real fix
 is to configure your own endpoint:
 
 1. Get a free RPC URL — e.g. sign up at https://helius.dev (free tier is
-   enough for personal use), or QuickNode / Triton / Alchemy.
+   enough for personal use), or QuickNode / Triton / Alchemy. **The value
+   must start with `https://`** — pasting just the hostname (without the
+   scheme) will make the app silently fall back to the public endpoint.
 2. Local dev: copy `.env.example` to `.env.local` and set
    `NEXT_PUBLIC_SOLANA_RPC_URL=https://mainnet.helius-rpc.com/?api-key=...`
 3. On Vercel: Project → Settings → Environment Variables → add

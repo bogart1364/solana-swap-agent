@@ -1,5 +1,12 @@
 "use client";
 
+// Wallet state is inherently per-browser-session, so this page should never
+// be statically prerendered at build time (that's also what triggered the
+// "Endpoint URL must start with http/https" build failure when an env var
+// was malformed — prerendering ran the wallet provider code during the
+// build itself).
+export const dynamic = "force-dynamic";
+
 import { useTradeAgent } from "@/lib/useTradeAgent";
 import ConsolePanel from "@/components/ConsolePanel";
 import MarketScanner from "@/components/MarketScanner";
