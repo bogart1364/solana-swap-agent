@@ -49,7 +49,12 @@ data comes from [DexScreener](https://dexscreener.com)'s public API.
 - **Market scanner** — polls DexScreener every ~45s for currently-boosted
   Solana tokens, scores each on liquidity, turnover, price momentum, and
   buy/sell pressure, and lists them with the reasons behind the score. One
-  click fills in a `buy` command for you.
+  click fills in a `buy` command for you. Each row also has a
+  **"Check mint/freeze authority"** button that reads the token's actual
+  on-chain permissions and top-holder concentration — a real, independent
+  signal (not a vibe-based score) for whether the team can print more
+  supply, freeze your wallet, or whether a few addresses control most of
+  the supply. See "Safety check" below for details.
 - **Your holdings** — reads your wallet's SPL token balances directly from
   chain, checks each against DexScreener, and raises an in-console alert if
   a token you hold shows dump-risk signals (sharp 5m drop, sell-heavy flow,
@@ -57,6 +62,30 @@ data comes from [DexScreener](https://dexscreener.com)'s public API.
   command.
 - **Contacts** — save `name → address` pairs locally in your browser so you
   can `send` to a name instead of pasting an address every time.
+
+## Safety check (on-chain, not a vibe score)
+
+The momentum score in the Market scanner tells you what's getting attention
+*right now* — it says nothing about whether the token is structurally safe
+to hold. The **"Check mint/freeze authority"** button on each row
+(`lib/rugcheck.ts`) reads the mint account directly from the chain and
+checks the three things that most commonly turn a pump into a total loss:
+
+- **Mint authority** — if it's not renounced (null), the team can create
+  unlimited additional supply whenever they want.
+- **Freeze authority** — if it's not renounced, the team can freeze any
+  wallet's token account, including yours, making it unsellable.
+- **Top-10 holder concentration** — what share of total supply sits in the
+  10 largest accounts. High concentration is a red flag, but it can also
+  just be the liquidity pool itself — the report says so explicitly rather
+  than assuming the worst.
+
+These combine into a 0–100 safety score and a plain-language list of flags.
+It supports both the classic Token program and Token-2022. **This is still
+not a guarantee** — a token with both authorities renounced and low
+concentration can still be a bad trade for reasons this check can't see
+(social engineering, an already-dumped chart, etc.). Use it to rule out the
+most mechanical rug vectors, not as a green light.
 
 ## Supported command grammar
 
@@ -134,6 +163,7 @@ lib/
   mint.ts               Resolves a symbol or raw mint address → mint + decimals
   jupiter.ts            Jupiter quote/swap API wrapper
   dexscreener.ts        Market data fetch + momentum scoring + dump-risk check
+  rugcheck.ts           On-chain mint/freeze authority + holder concentration check
   contacts.ts           localStorage-backed contact book
   tokens.ts             Curated symbol → mint address registry
 ```

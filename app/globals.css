@@ -539,6 +539,65 @@ a {
   cursor: default;
 }
 
+.safety-block {
+  margin: 4px 0 8px;
+}
+
+.safety-btn {
+  width: 100%;
+  font-family: var(--mono);
+  font-size: 11.5px;
+  color: var(--muted);
+  background: transparent;
+  border: 1px dashed var(--panel-border);
+  border-radius: 6px;
+  padding: 6px 10px;
+  cursor: pointer;
+  transition: border-color 0.15s ease, color 0.15s ease;
+}
+
+.safety-btn:hover {
+  border-color: var(--green);
+  color: var(--ink);
+}
+
+.safety-result {
+  border-radius: 6px;
+  padding: 8px 10px;
+  border: 1px solid var(--panel-border);
+}
+
+.safety-score-badge {
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 650;
+}
+
+.safety-result.safety-clean {
+  border-color: rgba(20, 241, 149, 0.35);
+}
+.safety-result.safety-clean .safety-score-badge {
+  color: var(--green);
+}
+
+.safety-result.safety-caution {
+  border-color: rgba(255, 180, 60, 0.35);
+}
+.safety-result.safety-caution .safety-score-badge {
+  color: #ffd479;
+}
+
+.safety-result.safety-high-risk {
+  border-color: rgba(255, 92, 92, 0.35);
+}
+.safety-result.safety-high-risk .safety-score-badge {
+  color: var(--danger);
+}
+
+.safety-result .scanner-reasons {
+  margin-bottom: 0;
+}
+
 /* ---------- contacts ---------- */
 
 .contact-form {

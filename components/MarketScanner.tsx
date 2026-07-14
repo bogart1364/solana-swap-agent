@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { useConnection } from "@solana/wallet-adapter-react";
 import {
   discoverCandidateAddresses,
   getPairsForAddresses,
@@ -8,6 +9,7 @@ import {
   type DexPair,
   type ScoreResult,
 } from "@/lib/dexscreener";
+import { checkTokenSafety, type SafetyReport } from "@/lib/rugcheck";
 
 const POLL_MS = 45_000;
 const MAX_ROWS = 15;
@@ -30,11 +32,28 @@ export default function MarketScanner({
 }: {
   runCommand: (text: string) => void | Promise<void>;
 }) {
+  const { connection } = useConnection();
   const [rows, setRows] = useState<Row[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [buySize, setBuySize] = useState("0.05");
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+  const [safety, setSafety] = useState<Record<string, { loading: boolean; report?: SafetyReport; error?: string }>>(
+    {}
+  );
+
+  const checkSafety = useCallback(
+    async (mint: string) => {
+      setSafety((prev) => ({ ...prev, [mint]: { loading: true } }));
+      try {
+        const report = await checkTokenSafety(connection, mint);
+        setSafety((prev) => ({ ...prev, [mint]: { loading: false, report } }));
+      } catch (err: any) {
+        setSafety((prev) => ({ ...prev, [mint]: { loading: false, error: err?.message ?? "Check failed." } }));
+      }
+    },
+    [connection]
+  );
 
   const refresh = useCallback(async () => {
     try {
@@ -80,7 +99,9 @@ export default function MarketScanner({
       <p className="risk-banner">
         These are statistical momentum scores from public DEX data (volume, liquidity, buy/sell
         ratio, age) — <strong>not a prediction</strong>. Low-liquidity Solana tokens are frequently
-        rug pulls. Treat every row as "worth a manual look," never as advice.
+        rug pulls. Treat every row as "worth a manual look," never as advice. Use{" "}
+        <strong>Check mint/freeze authority</strong> on a row before buying — it reads the token's
+        actual on-chain permissions, which is a much stronger signal than momentum alone.
       </p>
 
       <div className="buy-size-row">
@@ -124,6 +145,39 @@ export default function MarketScanner({
                 <li key={i}>{r}</li>
               ))}
             </ul>
+
+            {(() => {
+              const mint = pair.baseToken.address;
+              const s = safety[mint];
+              return (
+                <div className="safety-block">
+                  {!s && (
+                    <button className="safety-btn" onClick={() => checkSafety(mint)}>
+                      {"\ud83d\udd0d"} Check mint/freeze authority + holder concentration
+                    </button>
+                  )}
+                  {s?.loading && <p className="empty-text">Reading mint account on-chain\u2026</p>}
+                  {s?.error && <p className="error-text">{s.error}</p>}
+                  {s?.report && (
+                    <div className={`safety-result safety-${s.report.tier}`}>
+                      <span className="safety-score-badge">
+                        Safety {s.report.score}/100 {"\u00b7"}{" "}
+                        {s.report.tier === "clean"
+                          ? "No red flags"
+                          : s.report.tier === "caution"
+                          ? "Mixed signals"
+                          : "High risk"}
+                      </span>
+                      <ul className="scanner-reasons">
+                        {s.report.flags.map((f, i) => (
+                          <li key={i}>{f}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
 
             <button
               className="buy-btn"
