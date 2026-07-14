@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { Users, UserPlus, X } from "lucide-react";
 import { addContact, listContacts, removeContact, type Contact } from "@/lib/contacts";
 
 export default function ContactsPanel() {
@@ -34,7 +35,9 @@ export default function ContactsPanel() {
   return (
     <div className="panel">
       <div className="panel-header">
-        <h2>Contacts</h2>
+        <h2>
+          <Users size={16} strokeWidth={2.2} /> Contacts
+        </h2>
       </div>
       <p className="hint" style={{ marginTop: 0 }}>
         Saved here in your browser only. Use a name in a transfer command, e.g.{" "}
@@ -48,7 +51,9 @@ export default function ContactsPanel() {
           value={address}
           onChange={(e) => setAddress(e.target.value)}
         />
-        <button type="submit">Save</button>
+        <button type="submit">
+          <UserPlus size={13} strokeWidth={2.4} /> Save
+        </button>
       </form>
       {error && <p className="error-text">{error}</p>}
 
@@ -62,7 +67,7 @@ export default function ContactsPanel() {
               {c.address.slice(-4)}
             </span>
             <button className="ghost-btn" onClick={() => onRemove(c.name)}>
-              Remove
+              <X size={12} strokeWidth={2.4} /> Remove
             </button>
           </li>
         ))}

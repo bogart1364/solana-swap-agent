@@ -8,6 +8,7 @@
 export const dynamic = "force-dynamic";
 
 import { useTradeAgent } from "@/lib/useTradeAgent";
+import { TriangleAlert } from "lucide-react";
 import ConsolePanel from "@/components/ConsolePanel";
 import MarketScanner from "@/components/MarketScanner";
 import PortfolioWatch from "@/components/PortfolioWatch";
@@ -26,11 +27,14 @@ export default function Home() {
 
       {usingPublicRpc && (
         <div className="rpc-warning">
-          {"\u26a0 No custom RPC configured \u2014 using the public mainnet-beta endpoint, which " +
-            "frequently blocks or rate-limits browser requests (you'll see quotes, balances, and " +
-            "swaps fail with 403/429). Set "}
-          <code>NEXT_PUBLIC_SOLANA_RPC_URL</code>
-          {" in your deployment's environment variables to a real provider (Helius, QuickNode, Triton) and redeploy."}
+          <TriangleAlert size={14} strokeWidth={2.2} />
+          <span>
+            {"No custom RPC configured \u2014 using the public mainnet-beta endpoint, which " +
+              "frequently blocks or rate-limits browser requests (you'll see quotes, balances, and " +
+              "swaps fail with 403/429). Set "}
+            <code>NEXT_PUBLIC_SOLANA_RPC_URL</code>
+            {" in your deployment's environment variables to a real provider (Helius, QuickNode, Triton) and redeploy."}
+          </span>
         </div>
       )}
 

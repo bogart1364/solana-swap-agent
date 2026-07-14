@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useConnection, useWallet } from "@solana/wallet-adapter-react";
 import { TOKEN_PROGRAM_ID, TOKEN_2022_PROGRAM_ID } from "@solana/spl-token";
+import { Wallet, RefreshCw, TrendingDown } from "lucide-react";
 import { getPairsForAddresses, assessDumpRisk, type DexPair } from "@/lib/dexscreener";
 import { isRpcFailure } from "@/lib/mint";
 import type { LogKind } from "@/lib/useTradeAgent";
@@ -118,7 +119,9 @@ export default function PortfolioWatch({
     return (
       <div className="panel">
         <div className="panel-header">
-          <h2>Your holdings</h2>
+          <h2>
+            <Wallet size={16} strokeWidth={2.2} /> Your holdings
+          </h2>
         </div>
         <p className="empty-text">Connect a wallet to watch your token holdings for dump risk.</p>
       </div>
@@ -128,9 +131,15 @@ export default function PortfolioWatch({
   return (
     <div className="panel">
       <div className="panel-header">
-        <h2>Your holdings</h2>
+        <h2>
+          <Wallet size={16} strokeWidth={2.2} /> Your holdings
+        </h2>
         <button className="ghost-btn" onClick={refresh} disabled={loading}>
-          {loading ? "\u2026" : "Refresh"}
+          {loading ? "\u2026" : (
+            <>
+              <RefreshCw size={12} strokeWidth={2.4} /> Refresh
+            </>
+          )}
         </button>
       </div>
 
@@ -154,7 +163,7 @@ export default function PortfolioWatch({
             )}
             {h.pair && (
               <button className="sell-btn" onClick={() => handleSell(h)}>
-                Sell all {h.pair.baseToken.symbol} for SOL
+                <TrendingDown size={13} strokeWidth={2.4} /> Sell all {h.pair.baseToken.symbol} for SOL
               </button>
             )}
           </div>

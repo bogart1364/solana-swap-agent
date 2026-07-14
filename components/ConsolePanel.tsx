@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import dynamic from "next/dynamic";
+import { Rocket, SendHorizontal } from "lucide-react";
 import type { LogEntry } from "@/lib/useTradeAgent";
 
 // The wallet button reads browser-only wallet state (which extensions are
@@ -42,6 +43,7 @@ export default function ConsolePanel({
     <div className="console">
       <header className="console-header">
         <div className="brand">
+          <Rocket size={16} strokeWidth={2.2} />
           <span className="dot" />
           Swap Agent
         </div>
@@ -82,7 +84,11 @@ export default function ConsolePanel({
           spellCheck={false}
         />
         <button type="submit" disabled={busy || !input.trim()}>
-          {busy ? "\u2026" : "Run"}
+          {busy ? "\u2026" : (
+            <>
+              Run <SendHorizontal size={13} strokeWidth={2.4} />
+            </>
+          )}
         </button>
       </form>
 

@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useConnection } from "@solana/wallet-adapter-react";
+import { Radar, RefreshCw, ShieldCheck, ShoppingCart } from "lucide-react";
 import {
   discoverCandidateAddresses,
   getPairsForAddresses,
@@ -87,11 +88,17 @@ export default function MarketScanner({
   return (
     <div className="panel">
       <div className="panel-header">
-        <h2>Market scanner</h2>
+        <h2>
+          <Radar size={16} strokeWidth={2.2} /> Market scanner
+        </h2>
         <div className="panel-header-meta">
           {lastUpdated && <span>{lastUpdated.toLocaleTimeString()}</span>}
           <button className="ghost-btn" onClick={refresh} disabled={loading}>
-            {loading ? "\u2026" : "Refresh"}
+            {loading ? "\u2026" : (
+              <>
+                <RefreshCw size={12} strokeWidth={2.4} /> Refresh
+              </>
+            )}
           </button>
         </div>
       </div>
@@ -153,7 +160,8 @@ export default function MarketScanner({
                 <div className="safety-block">
                   {!s && (
                     <button className="safety-btn" onClick={() => checkSafety(mint)}>
-                      {"\ud83d\udd0d"} Check mint/freeze authority + holder concentration
+                      <ShieldCheck size={13} strokeWidth={2.2} /> Check mint/freeze authority + holder
+                      concentration
                     </button>
                   )}
                   {s?.loading && <p className="empty-text">Reading mint account on-chain\u2026</p>}
@@ -184,7 +192,7 @@ export default function MarketScanner({
               onClick={() => handleBuy(pair.baseToken.address, pair.baseToken.symbol)}
               disabled={result.tier === "extreme-risk"}
             >
-              Buy {buySize} SOL of {pair.baseToken.symbol}
+              <ShoppingCart size={13} strokeWidth={2.4} /> Buy {buySize} SOL of {pair.baseToken.symbol}
             </button>
           </div>
         ))}
