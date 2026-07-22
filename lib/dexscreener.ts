@@ -90,6 +90,32 @@ export async function searchPairs(query: string): Promise<DexPair[]> {
   return pairs.filter((p) => p.chainId === CHAIN);
 }
 
+const SOL_MINT = "So11111111111111111111111111111111111111112";
+let cachedSolPrice: { price: number; ts: number } | null = null;
+
+/**
+ * Current SOL/USD price, cached for 30s so the holdings panel's poll loop
+ * doesn't re-fetch it on every render. Used to express P&L in SOL terms
+ * without needing to know the historical SOL/USD rate at buy time — since
+ * cost basis is tracked in SOL spent, comparing against current value
+ * converted back to SOL cancels out the USD rate entirely.
+ */
+export async function getSolUsdPrice(): Promise<number> {
+  if (cachedSolPrice && Date.now() - cachedSolPrice.ts < 30_000) return cachedSolPrice.price;
+  try {
+    const pairs = await getPairsForAddresses([SOL_MINT]);
+    const best = pairs.find((p) => p.baseToken?.address === SOL_MINT && p.priceUsd);
+    const price = best?.priceUsd ? Number(best.priceUsd) : 0;
+    if (price > 0) {
+      cachedSolPrice = { price, ts: Date.now() };
+      return price;
+    }
+  } catch {
+    // fall through to stale cache below
+  }
+  return cachedSolPrice?.price ?? 0;
+}
+
 export interface ScoreResult {
   score: number; // 0-100, heuristic "momentum" score — NOT a prediction
   tier: "extreme-risk" | "high" | "medium" | "low" | "watch";

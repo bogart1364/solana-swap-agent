@@ -19,6 +19,7 @@ import { parseCommand } from "./parseCommand";
 import { getQuote, getSwapTransaction, formatAmount, toRawAmount, SOL_MINT } from "./jupiter";
 import { resolveToken, resolveWalletBalance } from "./mint";
 import { resolveRecipient } from "./contacts";
+import { recordBuy, reducePosition } from "./positions";
 
 export type LogKind = "command" | "info" | "quote" | "success" | "error" | "alert";
 
@@ -36,10 +37,17 @@ type PendingAction =
   | {
       kind: "swap";
       quote: any;
+      fromMint: string;
+      toMint: string;
       fromLabel: string;
       toLabel: string;
       fromAmountLabel: string;
       toAmountLabel: string;
+      fromAmountRaw: number;
+      toAmountRaw: number;
+      minReceivedLabel: string;
+      priceImpactPct: number;
+      slippagePct: number;
     }
   | {
       kind: "send";
@@ -117,20 +125,43 @@ export function useTradeAgent() {
           return;
         }
         const toAmountLabel = formatAmount(quote.outAmount, to.decimals);
+        const toAmountRaw = Number(quote.outAmount) / 10 ** to.decimals;
         const priceImpact = Number(quote.priceImpactPct ?? 0) * 100;
+        const slippagePct = (quote.slippageBps ?? 50) / 100;
+        const minReceivedRaw = quote.otherAmountThreshold
+          ? Number(quote.otherAmountThreshold) / 10 ** to.decimals
+          : toAmountRaw * (1 - slippagePct / 100);
+        const minReceivedLabel = formatAmount(
+          quote.otherAmountThreshold ?? Math.floor(minReceivedRaw * 10 ** to.decimals),
+          to.decimals
+        );
+
         pushLog(
           "quote",
-          `Quote: ${amount} ${from.symbol} \u2192 ${toAmountLabel} ${to.symbol} ` +
-            `(price impact ${priceImpact.toFixed(3)}%, slippage ${(quote.slippageBps ?? 50) / 100}%). ` +
-            `Type "confirm" to send it, or anything else to cancel.`
+          "\ud83d\udcdd Review before signing:\n" +
+            `  \u2022 Action: Swap (via Jupiter aggregator, Solana mainnet)\n` +
+            `  \u2022 You send: ${amount} ${from.symbol}\n` +
+            `  \u2022 You receive (estimated): ${toAmountLabel} ${to.symbol}\n` +
+            `  \u2022 Minimum received if price moves against you: ${minReceivedLabel} ${to.symbol}\n` +
+            `  \u2022 Price impact: ${priceImpact.toFixed(3)}%\n` +
+            `  \u2022 Slippage tolerance: ${slippagePct}%\n` +
+            `  \u2022 Network fee: ~0.000005 SOL (+ rent if a new token account is needed)\n` +
+            `Type "confirm" to sign and broadcast this exact transaction with your wallet, or anything else to cancel.`
         );
         setPendingAction({
           kind: "swap",
           quote,
+          fromMint: from.mint,
+          toMint: to.mint,
           fromLabel: from.symbol,
           toLabel: to.symbol,
           fromAmountLabel: String(amount),
           toAmountLabel,
+          fromAmountRaw: amount,
+          toAmountRaw,
+          minReceivedLabel,
+          priceImpactPct: priceImpact,
+          slippagePct,
         });
       } catch (err: any) {
         pushLog("error", err?.message ?? "Failed to fetch a quote.");
@@ -161,8 +192,13 @@ export function useTradeAgent() {
         if (isNative) {
           const rawAmount = toRawAmount(amount, 9);
           pushLog(
-            "info",
-            `Ready to send ${amount} SOL to ${recipient.label}. Type "confirm" to send, or anything else to cancel.`
+            "quote",
+            "\ud83d\udcdd Review before signing:\n" +
+              `  \u2022 Action: Transfer (System Program, Solana mainnet)\n` +
+              `  \u2022 You send: ${amount} SOL\n` +
+              `  \u2022 To: ${recipient.label} (${recipient.address.slice(0, 4)}\u2026${recipient.address.slice(-4)})\n` +
+              `  \u2022 Network fee: ~0.000005 SOL\n` +
+              `Type "confirm" to sign and broadcast this exact transaction with your wallet, or anything else to cancel.`
           );
           setPendingAction({
             kind: "send",
@@ -183,8 +219,13 @@ export function useTradeAgent() {
           }
           const rawAmount = toRawAmount(amount, token.decimals);
           pushLog(
-            "info",
-            `Ready to send ${amount} ${token.symbol} to ${recipient.label}. Type "confirm" to send, or anything else to cancel.`
+            "quote",
+            "\ud83d\udcdd Review before signing:\n" +
+              `  \u2022 Action: Transfer (SPL Token, Solana mainnet)\n` +
+              `  \u2022 You send: ${amount} ${token.symbol}\n` +
+              `  \u2022 To: ${recipient.label} (${recipient.address.slice(0, 4)}\u2026${recipient.address.slice(-4)})\n` +
+              `  \u2022 Network fee: ~0.000005 SOL (+ rent if the recipient needs a new token account)\n` +
+              `Type "confirm" to sign and broadcast this exact transaction with your wallet, or anything else to cancel.`
           );
           setPendingAction({
             kind: "send",
@@ -226,6 +267,11 @@ export function useTradeAgent() {
         if (confirmation.value.err) {
           pushLog("error", `Transaction failed on-chain: ${JSON.stringify(confirmation.value.err)}`);
         } else {
+          if (pendingAction.fromMint === SOL_MINT) {
+            recordBuy(pendingAction.toMint, pendingAction.fromAmountRaw, pendingAction.toAmountRaw);
+          } else if (pendingAction.toMint === SOL_MINT) {
+            reducePosition(pendingAction.fromMint, pendingAction.fromAmountRaw);
+          }
           pushLog(
             "success",
             `Swapped ${pendingAction.fromAmountLabel} ${pendingAction.fromLabel} \u2192 ${pendingAction.toAmountLabel} ${pendingAction.toLabel}.`,

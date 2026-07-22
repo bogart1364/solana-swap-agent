@@ -37,29 +37,35 @@ data comes from [DexScreener](https://dexscreener.com)'s public API.
    - `sell all BONK for SOL`
    - `send 0.5 SOL to alice` (alice = a saved contact)
    - `سواپ 1 SOL به USDC` / `ارسال 0.5 SOL به علی`
-3. The agent parses it and shows a preview — a live Jupiter quote for
-   swaps/buys/sells, or the amount + resolved recipient for a transfer.
-   **Nothing is sent yet.**
+3. The agent parses it and shows a **clear-signing preview** — exact amounts,
+   minimum received after slippage, price impact, route, and network fee for
+   swaps/buys/sells; amount + resolved recipient for a transfer. **Nothing is
+   sent yet.**
 4. Type `confirm` (or `تایید`) to build the transaction and sign it in your
    wallet, or type anything else to cancel.
 
 ## Dashboard panels
 
-- **Console** — the command line described above.
+- **Console** — the command line described above. Every quote/transfer
+  preview is a full clear-signing breakdown: what's being signed, exact
+  in/out amounts, worst-case minimum received, price impact, slippage, and
+  the network fee — never an opaque "confirm?" with no detail.
 - **Market scanner** — polls DexScreener every ~45s for currently-boosted
   Solana tokens, scores each on liquidity, turnover, price momentum, and
-  buy/sell pressure, and lists them with the reasons behind the score. One
-  click fills in a `buy` command for you. Each row also has a
-  **"Check mint/freeze authority"** button that reads the token's actual
-  on-chain permissions and top-holder concentration — a real, independent
-  signal (not a vibe-based score) for whether the team can print more
-  supply, freeze your wallet, or whether a few addresses control most of
-  the supply. See "Safety check" below for details.
+  buy/sell pressure (shown as an emoji + colored 0–100 bar, not just a
+  number), and lists the reasons behind the score. One click fills in a
+  `buy` command for you. Each row also has a **"Check mint/freeze
+  authority"** button — see "Safety check" below. An **auto-stage toggle**
+  (off by default) will automatically prepare — never sign or send — a buy
+  for the first token that clears both a high momentum bar *and* a clean
+  on-chain safety check; you still have to type `confirm` yourself.
 - **Your holdings** — reads your wallet's SPL token balances directly from
-  chain, checks each against DexScreener, and raises an in-console alert if
-  a token you hold shows dump-risk signals (sharp 5m drop, sell-heavy flow,
-  or a sudden liquidity pull). One click fills in a `sell all ... for SOL`
-  command.
+  chain, shows each one's current value in USD and SOL, and — for anything
+  bought through this app — unrealized P&L in SOL terms. Raises an
+  in-console alert if a token shows dump-risk signals (sharp 5m drop,
+  sell-heavy flow, or a sudden liquidity pull), with a matching **auto-stage
+  toggle** that prepares (not sends) a sell the same way. One click fills in
+  a `sell all ... for SOL` command manually too.
 - **Contacts** — save `name → address` pairs locally in your browser so you
   can `send` to a name instead of pasting an address every time.
 
@@ -80,12 +86,30 @@ checks the three things that most commonly turn a pump into a total loss:
   just be the liquidity pool itself — the report says so explicitly rather
   than assuming the worst.
 
-These combine into a 0–100 safety score and a plain-language list of flags.
-It supports both the classic Token program and Token-2022. **This is still
-not a guarantee** — a token with both authorities renounced and low
-concentration can still be a bad trade for reasons this check can't see
-(social engineering, an already-dumped chart, etc.). Use it to rule out the
-most mechanical rug vectors, not as a green light.
+These combine into a 0–100 safety score shown as an emoji + colored bar (✅
+green / ⚠️ yellow / 🚫 red) plus a plain-language list of flags. It supports
+both the classic Token program and Token-2022. **This is still not a
+guarantee** — a token with both authorities renounced and low concentration
+can still be a bad trade for reasons this check can't see (social
+engineering, an already-dumped chart, etc.). Use it to rule out the most
+mechanical rug vectors, not as a green light.
+
+## Auto-stage (still requires your signature)
+
+Both the Market scanner and Your holdings panels have an "auto-stage"
+toggle, off by default. When enabled:
+
+- **Buys**: the first token that scores ≥80 momentum *and*, once checked,
+  ≥70 on-chain safety gets a buy command run automatically, with a log line
+  explaining exactly why ("scored X/100 momentum and Y/100 safety").
+- **Sells**: a holding that trips the dump-risk check gets a `sell all`
+  staged automatically, with the reasons logged.
+
+In both cases, "staged" only means the same clear-signing quote preview
+described above gets prepared and shown — it never signs or broadcasts
+anything. You still have to type `confirm` and approve it in your wallet;
+nothing is fully automatic. Each mint is only auto-staged once per browser
+session, so it won't repeatedly re-suggest something you already dismissed.
 
 ## Supported command grammar
 
@@ -154,16 +178,18 @@ app/
 components/
   WalletProvider.tsx   Wallet adapter setup (Phantom, Solflare, + Wallet Standard)
   ConsolePanel.tsx     The command line UI (dumb component, all logic in the hook)
-  MarketScanner.tsx     "Tokens worth a look" list with scores + one-click buy
-  PortfolioWatch.tsx    Your SPL holdings + dump-risk alerts + one-click sell
+  MarketScanner.tsx     "Tokens worth a look" list with scores + one-click buy + auto-stage
+  PortfolioWatch.tsx    Your SPL holdings, value/P&L, dump-risk alerts + one-click sell
   ContactsPanel.tsx     Saved name → address book for transfers
+  ScoreBar.tsx          Shared emoji + colored 0-100 bar (momentum and safety scores)
 lib/
-  useTradeAgent.ts      Core hook: parses commands, builds/signs/sends transactions
+  useTradeAgent.ts      Core hook: parses commands, builds clear-signing previews, signs/sends
   parseCommand.ts       Free-text command parser (English + Persian)
   mint.ts               Resolves a symbol or raw mint address → mint + decimals
   jupiter.ts            Jupiter quote/swap API wrapper
-  dexscreener.ts        Market data fetch + momentum scoring + dump-risk check
+  dexscreener.ts        Market data fetch + momentum scoring + dump-risk check + SOL price
   rugcheck.ts           On-chain mint/freeze authority + holder concentration check
+  positions.ts          localStorage cost-basis ledger for the P&L display
   contacts.ts           localStorage-backed contact book
   tokens.ts             Curated symbol → mint address registry
 ```

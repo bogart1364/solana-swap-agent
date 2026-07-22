@@ -44,8 +44,13 @@ export default function Home() {
           <ContactsPanel />
         </div>
         <div className="dashboard-col">
-          <MarketScanner runCommand={runCommand} />
-          <PortfolioWatch runCommand={runCommand} pushLog={pushLog} />
+          <MarketScanner
+            runCommand={runCommand}
+            pushLog={pushLog}
+            hasPending={!!pendingAction}
+            busy={busy}
+          />
+          <PortfolioWatch runCommand={runCommand} pushLog={pushLog} hasPending={!!pendingAction} busy={busy} />
         </div>
       </div>
     </main>
