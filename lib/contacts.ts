@@ -7,11 +7,29 @@ export interface Contact {
 
 const STORAGE_KEY = "swap-agent:contacts";
 
+function isContact(value: unknown): value is Contact {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    typeof (value as any).name === "string" &&
+    typeof (value as any).address === "string" &&
+    (value as any).name.length > 0 &&
+    (value as any).address.length > 0
+  );
+}
+
 function readAll(): Contact[] {
   if (typeof window === "undefined") return [];
   try {
     const raw = window.localStorage.getItem(STORAGE_KEY);
-    return raw ? (JSON.parse(raw) as Contact[]) : [];
+    if (!raw) return [];
+    const parsed: unknown = JSON.parse(raw);
+    // Defensive: don't trust that stored/parsed data still has the shape we
+    // expect (corruption, a stale schema from an older version, or tampering
+    // by another script sharing this origin). Anything malformed is
+    // silently dropped rather than propagated into address resolution.
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter(isContact);
   } catch {
     return [];
   }
@@ -61,7 +79,10 @@ export function findContact(name: string): Contact | undefined {
 export function resolveRecipient(text: string): { address: string; label: string } | null {
   const trimmed = text.trim();
   const contact = findContact(trimmed);
-  if (contact) return { address: contact.address, label: contact.name };
+  // Re-validate even a stored contact's address here, rather than trusting
+  // it was still well-formed when it was saved — this is the last checkpoint
+  // before the address is used to build a real transaction.
+  if (contact && isValidAddress(contact.address)) return { address: contact.address, label: contact.name };
   if (isValidAddress(trimmed)) return { address: trimmed, label: `${trimmed.slice(0, 4)}\u2026${trimmed.slice(-4)}` };
   return null;
 }

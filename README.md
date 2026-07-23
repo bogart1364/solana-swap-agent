@@ -205,6 +205,20 @@ lib/
 - New SPL-token recipients need an Associated Token Account; the transfer
   builder creates one automatically if the recipient doesn't have it yet
   (this costs a small amount of rent-exempt SOL from your wallet).
+- **HTTP security headers** (`next.config.js`) are set on every response:
+  a Content-Security-Policy, `X-Frame-Options: DENY` (no embedding this app
+  in an iframe elsewhere), `X-Content-Type-Options: nosniff`, a strict
+  `Referrer-Policy`, a locked-down `Permissions-Policy`, and HSTS. See the
+  comments in `next.config.js` for the reasoning behind each CSP directive,
+  and `SECURITY.md` for a from-first-principles look at dependency
+  advisories (which ones actually reach the shipped bundle vs. which don't,
+  verified against the real build output rather than assumed).
+- **If you enable GitHub's Dependabot / secret scanning** for this repo
+  (Settings → Code security and analysis — free for public repos, and
+  worth turning on if you haven't): a scoped `Contents: Read and write`
+  personal access token, like the kind used to push here, deliberately
+  cannot change those settings itself. That's correct behavior, not a bug —
+  flip them on manually.
 
 ## Extending it
 

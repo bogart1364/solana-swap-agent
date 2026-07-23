@@ -17,11 +17,35 @@ export interface Position {
 
 const KEY = "swapagent:positions:v1";
 
+function isPosition(value: unknown): value is Position {
+  const v = value as any;
+  return (
+    typeof v === "object" &&
+    v !== null &&
+    typeof v.mint === "string" &&
+    typeof v.solSpent === "number" &&
+    Number.isFinite(v.solSpent) &&
+    v.solSpent > 0 &&
+    typeof v.tokensReceived === "number" &&
+    Number.isFinite(v.tokensReceived) &&
+    v.tokensReceived > 0
+  );
+}
+
 function readAll(): Record<string, Position> {
   if (typeof window === "undefined") return {};
   try {
     const raw = window.localStorage.getItem(KEY);
-    return raw ? JSON.parse(raw) : {};
+    if (!raw) return {};
+    const parsed: unknown = JSON.parse(raw);
+    if (typeof parsed !== "object" || parsed === null) return {};
+    // Defensive: drop anything that doesn't look like a real position rather
+    // than letting a corrupted entry propagate into P&L math (e.g. NaN%).
+    const out: Record<string, Position> = {};
+    for (const [mint, value] of Object.entries(parsed as Record<string, unknown>)) {
+      if (isPosition(value)) out[mint] = value;
+    }
+    return out;
   } catch {
     return {};
   }
