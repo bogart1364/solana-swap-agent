@@ -185,6 +185,8 @@ components/
 lib/
   useTradeAgent.ts      Core hook: parses commands, builds clear-signing previews, signs/sends
   parseCommand.ts       Free-text command parser (English + Persian)
+  parseCommand.test.ts  Regression tests for the parser
+  dexscreener.test.ts   Tests for momentum scoring + dump-risk heuristics
   mint.ts               Resolves a symbol or raw mint address → mint + decimals
   jupiter.ts            Jupiter quote/swap API wrapper
   dexscreener.ts        Market data fetch + momentum scoring + dump-risk check + SOL price
@@ -219,6 +221,37 @@ lib/
   personal access token, like the kind used to push here, deliberately
   cannot change those settings itself. That's correct behavior, not a bug —
   flip them on manually.
+
+## Testing & CI
+
+The command parser and the momentum/dump-risk scoring are the two most
+bug-prone pieces of logic in this app — both are pure functions, so both
+have real test coverage instead of relying on manual poking:
+
+```bash
+npm test        # run once
+npm run test:watch
+```
+
+`lib/parseCommand.test.ts` includes regression tests for every parsing bug
+found during manual testing (a missing "of" connector silently producing a
+bogus SOL→SOL swap, scientific-notation amounts like `1e-7` being read as
+just `7`, and — found by writing these very tests — negative amounts like
+`-1` being silently accepted by matching only the digits after the minus
+sign). `lib/dexscreener.test.ts` covers the scoring heuristics.
+
+`.github/workflows/ci.yml` runs type-checking, the test suite, and a full
+build on every push/PR to `main`, so a broken build or a parser regression
+shows up in CI instead of (or before) a live deployment.
+
+## Error handling
+
+`app/error.tsx` and `app/global-error.tsx` are React error boundaries for
+the App Router: if a component throws during render, the person sees a
+recoverable "something broke in the UI, your funds are unaffected" screen
+with a retry button instead of a blank white page. This matters more for a
+wallet app than most — a scary blank screen right after approving a
+transaction is a bad moment to also be confusing.
 
 ## Extending it
 
