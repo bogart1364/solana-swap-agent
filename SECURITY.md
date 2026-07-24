@@ -29,6 +29,14 @@ versions; security fixes land on `main` and get redeployed.
 
 ## Known residual risk (dependency advisories)
 
+*(Update: adding `vitest` as a test-runner devDependency briefly introduced
+a critical advisory, GHSA-5xrq-8626-4rwp, affecting Vitest's UI/browser-mode
+dev server — never used by this project (`npm test` runs `vitest run`,
+never `--ui`), and a devDependency that's never shipped to production
+regardless. It's fixed anyway: bumping to the latest stable `vitest@4.x`
+resolved it along with the `esbuild`/`vite` chain it pulled in, verified
+against the actual test run and full build before shipping.)
+
 `npm audit` currently reports advisories in transitive dependencies pulled
 in by `@solana/wallet-adapter-react` and `@solana/spl-token` (mobile wallet
 adapter support, `bigint-buffer`, and an old `uuid` via `jayson` inside
