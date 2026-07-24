@@ -2,7 +2,20 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useConnection } from "@solana/wallet-adapter-react";
-import { Radar, RefreshCw, ShieldCheck, ShoppingCart, Bot } from "lucide-react";
+import {
+  Radar,
+  RefreshCw,
+  ShieldCheck,
+  ShieldAlert,
+  ShieldX,
+  ShoppingCart,
+  Bot,
+  Rocket,
+  TrendingUp,
+  TrendingDown,
+  Eye,
+  Ban,
+} from "lucide-react";
 import {
   discoverCandidateAddresses,
   getPairsForAddresses,
@@ -36,12 +49,19 @@ const TIER_LABEL: Record<ScoreResult["tier"], string> = {
   "extreme-risk": "Extreme risk",
 };
 
-const TIER_EMOJI: Record<ScoreResult["tier"], string> = {
-  high: "\ud83d\ude80",
-  medium: "\ud83d\udcc8",
-  low: "\ud83d\udcc9",
-  watch: "\ud83d\udc40",
-  "extreme-risk": "\ud83d\udeab",
+const iconProps = { size: 13, strokeWidth: 2.4 };
+const TIER_ICON: Record<ScoreResult["tier"], React.ReactNode> = {
+  high: <Rocket {...iconProps} />,
+  medium: <TrendingUp {...iconProps} />,
+  low: <TrendingDown {...iconProps} />,
+  watch: <Eye {...iconProps} />,
+  "extreme-risk": <Ban {...iconProps} />,
+};
+
+const SAFETY_ICON: Record<SafetyReport["tier"], React.ReactNode> = {
+  clean: <ShieldCheck {...iconProps} />,
+  caution: <ShieldAlert {...iconProps} />,
+  "high-risk": <ShieldX {...iconProps} />,
 };
 
 export default function MarketScanner({
@@ -121,7 +141,7 @@ export default function MarketScanner({
             const amount = parseFloat(buySizeRef.current) || 0.05;
             pushLog(
               "alert",
-              `\ud83e\udd16 Auto-staged buy: ${candidate.pair.baseToken.symbol} scored ${candidate.result.score}/100 ` +
+              `Auto-staged buy: ${candidate.pair.baseToken.symbol} scored ${candidate.result.score}/100 ` +
                 `momentum and ${report.score}/100 safety (mint/freeze renounced check + holder concentration). ` +
                 `Review the quote below \u2014 nothing sends until you type "confirm".`
             );
@@ -207,11 +227,11 @@ export default function MarketScanner({
                 </a>
               </div>
               <span className={`tier-badge tier-badge-${result.tier}`}>
-                {TIER_EMOJI[result.tier]} {TIER_LABEL[result.tier]}
+                {TIER_ICON[result.tier]} {TIER_LABEL[result.tier]}
               </span>
             </div>
 
-            <ScoreBar score={result.score} label="Momentum" emoji={TIER_EMOJI[result.tier]} />
+            <ScoreBar score={result.score} label="Momentum" icon={TIER_ICON[result.tier]} />
 
             <div className="scanner-stats">
               <span>${Number(pair.priceUsd ?? 0).toPrecision(4)}</span>
@@ -241,13 +261,7 @@ export default function MarketScanner({
                   {s?.error && <p className="error-text">{s.error}</p>}
                   {s?.report && (
                     <div className={`safety-result safety-${s.report.tier}`}>
-                      <ScoreBar
-                        score={s.report.score}
-                        label="Safety"
-                        emoji={
-                          s.report.tier === "clean" ? "\u2705" : s.report.tier === "caution" ? "\u26a0\ufe0f" : "\ud83d\udeab"
-                        }
-                      />
+                      <ScoreBar score={s.report.score} label="Safety" icon={SAFETY_ICON[s.report.tier]} />
                       <ul className="scanner-reasons">
                         {s.report.flags.map((f, i) => (
                           <li key={i}>{f}</li>

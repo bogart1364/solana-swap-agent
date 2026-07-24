@@ -107,7 +107,7 @@ export default function PortfolioWatch({
           if (Date.now() - lastAlert > ALERT_COOLDOWN_MS) {
             pushLog(
               "alert",
-              `\u26a0 Possible dump risk on ${pair.baseToken.symbol}: ${risk.reasons.join(" ")}`
+              `Possible dump risk on ${pair.baseToken.symbol}: ${risk.reasons.join(" ")}`
             );
             lastAlertAt.current.set(b.mint, Date.now());
           }
@@ -122,7 +122,7 @@ export default function PortfolioWatch({
             stagedThisCycle = true;
             pushLog(
               "alert",
-              `\ud83e\udd16 Auto-staged sell: ${pair.baseToken.symbol} looks like it's dumping (${risk.reasons.join(
+              `Auto-staged sell: ${pair.baseToken.symbol} looks like it's dumping (${risk.reasons.join(
                 " "
               )}). Review the quote below \u2014 nothing sends until you type "confirm".`
             );

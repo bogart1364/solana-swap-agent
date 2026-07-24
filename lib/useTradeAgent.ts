@@ -138,7 +138,7 @@ export function useTradeAgent() {
 
         pushLog(
           "quote",
-          "\ud83d\udcdd Review before signing:\n" +
+          "Review before signing:\n" +
             `  \u2022 Action: Swap (via Jupiter aggregator, Solana mainnet)\n` +
             `  \u2022 You send: ${amount} ${from.symbol}\n` +
             `  \u2022 You receive (estimated): ${toAmountLabel} ${to.symbol}\n` +
@@ -193,7 +193,7 @@ export function useTradeAgent() {
           const rawAmount = toRawAmount(amount, 9);
           pushLog(
             "quote",
-            "\ud83d\udcdd Review before signing:\n" +
+            "Review before signing:\n" +
               `  \u2022 Action: Transfer (System Program, Solana mainnet)\n` +
               `  \u2022 You send: ${amount} SOL\n` +
               `  \u2022 To: ${recipient.label} (${recipient.address.slice(0, 4)}\u2026${recipient.address.slice(-4)})\n` +
@@ -220,7 +220,7 @@ export function useTradeAgent() {
           const rawAmount = toRawAmount(amount, token.decimals);
           pushLog(
             "quote",
-            "\ud83d\udcdd Review before signing:\n" +
+            "Review before signing:\n" +
               `  \u2022 Action: Transfer (SPL Token, Solana mainnet)\n` +
               `  \u2022 You send: ${amount} ${token.symbol}\n` +
               `  \u2022 To: ${recipient.label} (${recipient.address.slice(0, 4)}\u2026${recipient.address.slice(-4)})\n` +

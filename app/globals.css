@@ -576,6 +576,9 @@ a {
 }
 
 .tier-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
   font-family: var(--mono);
   font-size: 10.5px;
   padding: 2px 8px;
@@ -856,8 +859,9 @@ a {
   margin: 6px 0;
 }
 
-.score-bar-emoji {
-  font-size: 12px;
+.score-bar-icon {
+  display: flex;
+  align-items: center;
   flex-shrink: 0;
 }
 
