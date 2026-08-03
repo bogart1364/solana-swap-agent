@@ -40,6 +40,12 @@ export async function getSwapTransaction(quoteResponse: unknown, userPublicKey: 
       dynamicComputeUnitLimit: true,
       dynamicSlippage: true,
       wrapAndUnwrapSol: true,
+      // Auto priority fee: bids enough (Jupiter estimates the going rate) to
+      // land during congestion instead of getting stuck behind other
+      // transactions — this matters most exactly when chasing something
+      // moving fast, which is when a plain minimum-fee tx is most likely to
+      // miss its price or fail to land at all.
+      prioritizationFeeLamports: "auto",
     }),
   });
   if (!res.ok) {

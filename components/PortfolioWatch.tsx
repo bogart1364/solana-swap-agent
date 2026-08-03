@@ -3,13 +3,13 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useConnection, useWallet } from "@solana/wallet-adapter-react";
 import { TOKEN_PROGRAM_ID, TOKEN_2022_PROGRAM_ID } from "@solana/spl-token";
-import { Wallet, RefreshCw, TrendingDown, Bot } from "lucide-react";
+import { Wallet, RefreshCw, TrendingDown, Bot, Target, ShieldAlert } from "lucide-react";
 import { getPairsForAddresses, assessDumpRisk, getSolUsdPrice, type DexPair } from "@/lib/dexscreener";
 import { isRpcFailure } from "@/lib/mint";
 import { getPosition } from "@/lib/positions";
 import type { LogKind } from "@/lib/useTradeAgent";
 
-const POLL_MS = 30_000;
+const POLL_MS = 15_000;
 const ALERT_COOLDOWN_MS = 10 * 60_000;
 
 interface Holding {
@@ -41,6 +41,9 @@ export default function PortfolioWatch({
   const [loading, setLoading] = useState(false);
   const [rpcError, setRpcError] = useState<string | null>(null);
   const [autoStageSell, setAutoStageSell] = useState(false);
+  const [tpslEnabled, setTpslEnabled] = useState(false);
+  const [takeProfitPct, setTakeProfitPct] = useState("50");
+  const [stopLossPct, setStopLossPct] = useState("10");
   const lastRpcErrorLoggedAt = useRef(0);
 
   const prevPairs = useRef<Map<string, DexPair>>(new Map());
@@ -51,6 +54,18 @@ export default function PortfolioWatch({
   hasPendingRef.current = hasPending;
   const busyRef = useRef(busy);
   busyRef.current = busy;
+  const tpslEnabledRef = useRef(tpslEnabled);
+  tpslEnabledRef.current = tpslEnabled;
+  const takeProfitRef = useRef<number | null>(null);
+  takeProfitRef.current = (() => {
+    const n = parseFloat(takeProfitPct);
+    return Number.isFinite(n) && n > 0 ? n : null;
+  })();
+  const stopLossRef = useRef<number | null>(null);
+  stopLossRef.current = (() => {
+    const n = parseFloat(stopLossPct);
+    return Number.isFinite(n) && n > 0 ? n : null;
+  })();
   const autoStagedMints = useRef<Set<string>>(new Set());
 
   const refresh = useCallback(async () => {
@@ -129,6 +144,41 @@ export default function PortfolioWatch({
             runCommand(`sell all ${b.mint} for SOL`);
           }
         }
+
+        // Take-profit / stop-loss: a separate signal from dump-risk above —
+        // this fires purely off the P&L threshold you set, regardless of
+        // whether DexScreener's short-term stats look risky right now.
+        if (
+          tpslEnabledRef.current &&
+          pnlPct !== null &&
+          !hasPendingRef.current &&
+          !busyRef.current &&
+          !stagedThisCycle &&
+          !autoStagedMints.current.has(b.mint)
+        ) {
+          const tp = takeProfitRef.current;
+          const sl = stopLossRef.current;
+          if (tp !== null && pnlPct >= tp) {
+            autoStagedMints.current.add(b.mint);
+            stagedThisCycle = true;
+            pushLog(
+              "alert",
+              `Auto-staged sell: ${pair.baseToken.symbol} hit your take-profit target ` +
+                `(+${pnlPct.toFixed(1)}% \u2265 +${tp}%). Review the quote below \u2014 nothing sends until you type "confirm".`
+            );
+            runCommand(`sell all ${b.mint} for SOL`);
+          } else if (sl !== null && pnlPct <= -sl) {
+            autoStagedMints.current.add(b.mint);
+            stagedThisCycle = true;
+            pushLog(
+              "alert",
+              `Auto-staged sell: ${pair.baseToken.symbol} hit your stop-loss ` +
+                `(${pnlPct.toFixed(1)}% \u2264 -${sl}%). Review the quote below \u2014 nothing sends until you type "confirm".`
+            );
+            runCommand(`sell all ${b.mint} for SOL`);
+          }
+        }
+
         return { ...b, pair, atRisk: risk.atRisk, riskReasons: risk.reasons, valueUsd, valueSol, pnlPct };
       });
 
@@ -202,6 +252,39 @@ export default function PortfolioWatch({
         <span>{"Auto-stage sells on detected dump risk \u2014 still needs your confirm"}</span>
       </label>
 
+      <label className="toggle-row">
+        <input type="checkbox" checked={tpslEnabled} onChange={(e) => setTpslEnabled(e.target.checked)} />
+        <Target size={14} strokeWidth={2.2} />
+        <span>{"Auto-stage sells at take-profit / stop-loss \u2014 still needs your confirm"}</span>
+      </label>
+
+      {tpslEnabled && (
+        <div className="tpsl-row">
+          <label>
+            Take profit at +
+            <input
+              type="number"
+              min="0"
+              step="1"
+              value={takeProfitPct}
+              onChange={(e) => setTakeProfitPct(e.target.value)}
+            />
+            %
+          </label>
+          <label>
+            Stop loss at -
+            <input
+              type="number"
+              min="0"
+              step="1"
+              value={stopLossPct}
+              onChange={(e) => setStopLossPct(e.target.value)}
+            />
+            %
+          </label>
+        </div>
+      )}
+
       <div className="scanner-list">
         {rpcError && <p className="error-text">{rpcError}</p>}
         {holdings.map((h) => (
@@ -231,6 +314,11 @@ export default function PortfolioWatch({
                 )}
                 {h.pnlPct === null && h.valueUsd !== null && (
                   <span className="holding-pnl-unknown">cost basis unknown</span>
+                )}
+                {tpslEnabled && h.pnlPct !== null && (
+                  <span className="holding-pnl-unknown">
+                    <ShieldAlert size={11} strokeWidth={2.2} /> auto-sell at +{takeProfitPct}% / -{stopLossPct}%
+                  </span>
                 )}
               </div>
             )}

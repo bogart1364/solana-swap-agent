@@ -50,22 +50,26 @@ data comes from [DexScreener](https://dexscreener.com)'s public API.
   preview is a full clear-signing breakdown: what's being signed, exact
   in/out amounts, worst-case minimum received, price impact, slippage, and
   the network fee — never an opaque "confirm?" with no detail.
-- **Market scanner** — polls DexScreener every ~45s for currently-boosted
-  Solana tokens, scores each on liquidity, turnover, price momentum, and
-  buy/sell pressure (shown as an emoji + colored 0–100 bar, not just a
-  number), and lists the reasons behind the score. One click fills in a
-  `buy` command for you. Each row also has a **"Check mint/freeze
-  authority"** button — see "Safety check" below. An **auto-stage toggle**
-  (off by default) will automatically prepare — never sign or send — a buy
-  for the first token that clears both a high momentum bar *and* a clean
-  on-chain safety check; you still have to type `confirm` yourself.
+- **Market scanner** — polls DexScreener every ~20s (scanning up to 70
+  candidate tokens per cycle) for currently-boosted Solana tokens, scores
+  each on liquidity, turnover, price momentum, and buy/sell pressure (shown
+  as an icon + colored 0–100 bar, not just a number), and lists the reasons
+  behind the score. One click fills in a `buy` command for you. Each row
+  also has a **"Check mint/freeze authority"** button — see "Safety check"
+  below. An **auto-stage toggle** (off by default) will automatically
+  prepare — never sign or send — a buy for the first token that clears both
+  a high momentum bar *and* a clean on-chain safety check; you still have to
+  type `confirm` yourself.
 - **Your holdings** — reads your wallet's SPL token balances directly from
-  chain, shows each one's current value in USD and SOL, and — for anything
-  bought through this app — unrealized P&L in SOL terms. Raises an
-  in-console alert if a token shows dump-risk signals (sharp 5m drop,
-  sell-heavy flow, or a sudden liquidity pull), with a matching **auto-stage
-  toggle** that prepares (not sends) a sell the same way. One click fills in
-  a `sell all ... for SOL` command manually too.
+  chain (polling every ~15s), shows each one's current value in USD and
+  SOL, and — for anything bought through this app — unrealized P&L in SOL
+  terms. Raises an in-console alert if a token shows dump-risk signals
+  (sharp 5m drop, sell-heavy flow, or a sudden liquidity pull), with a
+  matching **auto-stage toggle** that prepares (not sends) a sell the same
+  way. A separate **take-profit / stop-loss toggle** lets you set a target
+  gain % and a max loss % (defaults: +50% / -10%) — crossing either
+  threshold auto-stages a sell the same way, still gated on your `confirm`.
+  One click fills in a `sell all ... for SOL` command manually too.
 - **Contacts** — save `name → address` pairs locally in your browser so you
   can `send` to a name instead of pasting an address every time.
 
@@ -207,6 +211,17 @@ lib/
 - New SPL-token recipients need an Associated Token Account; the transfer
   builder creates one automatically if the recipient doesn't have it yet
   (this costs a small amount of rent-exempt SOL from your wallet).
+- **Before building any buy/swap transaction**, the app checks that your
+  SOL balance actually covers the swap amount *plus* the ~0.0021 SOL rent
+  for a brand-new destination token account (if this is the first time
+  buying that token) *plus* a network fee buffer — and tells you exactly
+  how short you are if not, instead of letting it fail on-chain with a raw
+  `insufficient lamports` simulation error. This is the single most common
+  real-world failure when buying with close to your full balance.
+- Swaps request Jupiter's automatic priority fee (`prioritizationFeeLamports:
+  "auto"`), which bids enough to land during congestion — worth it exactly
+  when chasing something moving fast, which is when a bare minimum-fee
+  transaction is most likely to miss its price or fail to land at all.
 - **HTTP security headers** (`next.config.js`) are set on every response:
   a Content-Security-Policy, `X-Frame-Options: DENY` (no embedding this app
   in an iframe elsewhere), `X-Content-Type-Options: nosniff`, a strict

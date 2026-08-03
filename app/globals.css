@@ -936,8 +936,38 @@ a {
 }
 
 .holding-pnl-unknown {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
   color: var(--muted);
   font-size: 11px;
+}
+
+.tpsl-row {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin: 0 0 12px;
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.tpsl-row label {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.tpsl-row input {
+  width: 52px;
+  background: #0d0f13;
+  border: 1px solid var(--panel-border);
+  border-radius: 6px;
+  color: var(--ink);
+  padding: 4px 6px;
+  font-family: var(--mono);
+  font-size: 12px;
 }
 
 /* ---------- error boundary ---------- */

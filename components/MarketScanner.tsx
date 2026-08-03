@@ -27,8 +27,8 @@ import { checkTokenSafety, type SafetyReport } from "@/lib/rugcheck";
 import ScoreBar from "./ScoreBar";
 import type { LogKind } from "@/lib/useTradeAgent";
 
-const POLL_MS = 45_000;
-const MAX_ROWS = 15;
+const POLL_MS = 20_000;
+const MAX_ROWS = 20;
 // Auto-stage threshold: both the momentum score AND an on-chain safety
 // check have to independently clear a high bar before anything gets
 // auto-staged — and staging only ever prepares a quote, it never signs or
@@ -116,7 +116,7 @@ export default function MarketScanner({
   const refresh = useCallback(async () => {
     try {
       setError(null);
-      const addresses = await discoverCandidateAddresses(40);
+      const addresses = await discoverCandidateAddresses(70);
       const pairs = await getPairsForAddresses(addresses);
       const scored = pairs
         .map((pair) => ({ pair, result: scoreMomentum(pair) }))

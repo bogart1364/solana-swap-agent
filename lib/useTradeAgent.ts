@@ -119,6 +119,44 @@ export function useTradeAgent() {
         }
 
         const rawAmount = toRawAmount(amount, from.decimals);
+
+        // Pre-flight balance check — this is the #1 real-world way a buy
+        // fails with a cryptic "insufficient lamports" simulation error:
+        // spending (almost) all available SOL on the swap itself leaves
+        // nothing to cover the network fee or the rent for a brand-new
+        // destination token account (required whenever this is the first
+        // time buying a given token). Checking this ourselves first turns
+        // that into a clear, specific message instead of a raw program error.
+        const solBalanceLamports = await connection.getBalance(publicKey);
+        let destAtaRentLamports = 0;
+        if (to.mint !== SOL_MINT) {
+          try {
+            const destAta = await getAssociatedTokenAddress(new PublicKey(to.mint), publicKey, false, to.programId);
+            const destInfo = await connection.getAccountInfo(destAta);
+            if (!destInfo) destAtaRentLamports = 2_100_000; // ~0.0021 SOL, a safe margin over the ~0.00203928 SOL minimum
+          } catch {
+            destAtaRentLamports = 2_100_000; // can't confirm it exists — assume the worst rather than undercount
+          }
+        }
+        const FEE_BUFFER_LAMPORTS = 50_000; // covers the base fee plus a real-world priority fee
+        const spendLamports = from.mint === SOL_MINT ? Math.round(amount * LAMPORTS_PER_SOL) : 0;
+        const requiredLamports = spendLamports + destAtaRentLamports + FEE_BUFFER_LAMPORTS;
+        if (solBalanceLamports < requiredLamports) {
+          const haveSol = solBalanceLamports / LAMPORTS_PER_SOL;
+          const needSol = requiredLamports / LAMPORTS_PER_SOL;
+          const parts = [];
+          if (spendLamports > 0) parts.push(`${amount} SOL to swap`);
+          if (destAtaRentLamports > 0) parts.push("~0.0021 SOL to create the new token account (first time buying this one)");
+          parts.push("a network fee");
+          pushLog(
+            "error",
+            `Not enough SOL: this needs about ${needSol.toFixed(5)} SOL total (${parts.join(" + ")}), ` +
+              `but this wallet only has ${haveSol.toFixed(5)} SOL \u2014 short by about ${(needSol - haveSol).toFixed(5)} SOL. ` +
+              `Try a smaller amount, or top up the wallet.`
+          );
+          return;
+        }
+
         const quote = await getQuote({ fromMint: from.mint, toMint: to.mint, rawAmount, slippageBps });
         if (quote.error) {
           pushLog("error", `No route found: ${quote.error}`);
